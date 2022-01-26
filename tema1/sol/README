@@ -1,0 +1,63 @@
+GARBUZ CATALIN 336CC 
+
+Implementarea temei am pornit-o de la solutia algoritmului secvential
+oferita in schelet.
+ In functia main, fata de algoritmul secvential, mai citim si variabila
+p, care imi arata numarul de thread-uri cu care se va rezolva problema.
+Tot aici, dupa citirea acestui parametru, imi creez un array de 
+thread_arg* (structura folosita pentru a trimite argumente thread-urilor,
+si a evita utilizarea variabilelor globale), si un array de pthdread_t,
+unde avem salvate firele de executie. La pasul urmator, am un ciclu care merge
+pana la p, in care initializez campurilile structurii cu care vor fi apelate
+thread-urile. Se creeaza thread-urile cu functia pthread_create, si se 
+asteapta finisarea executiei acestora.
+
+Thread-urile ruleaza functia numita run_thread_genetic, declarata in fisierul
+thread_func.c. In linii generale, aceasta contine pasii realizati in functia
+run_genetic_algorithm() din algoritmul secvential. In continuare am observat
+ca initial in functie avem un numar mare de cicluri for, care pot fi
+paralelizate pentru a obtine un timp de rulare mult mai bun. Pentru
+paralelizarea acestora am utilizat formulele invatate in laborator pentru
+calcularea indicilor de start si end a fiecarui thread. De asemenea, pentru 
+a evita problemele de sincronizare care pot aparea, folosesc bariere.(bariera
+initiala o trimit ca camp a structurii de argumente a fiecarui thread). In
+for-ul mare, de la 0 la generations_count, la fiecare iteratie merg pe 
+urmatorii pasi:
+
+1. Paralelizez calcularea fitness-ului generatiei curente.
+2. Ii dau thdread-ului cu id-ul 0 task-ul de a sorta generatia.
+3. Apeland pthread_barrier_wait(targ.barrier), ma asigur ca executia va 
+   continua numai dupa ce thread-ul 0 va finisa sortarea.
+4. Paralelizez procesul de selectie a primilor 30% din copii
+5. Paralelizez mutatia primilor 20% de copii cu prima versiune de bit_string;
+6. Paralelizez mutatia urmatorilor 20% de copii cu a doua versiune de
+   bit_string;
+7. Paralelizez operatia de cross-over pentru primii 30% din parinti
+8. Trec la urmatoarea generatie, paralelizez modificarea index-ilor 
+   noii generatii.
+9. Astept ca toate thread-urile sa isi finiseze task-urile din iteratia 
+   actuala a for-ului mare, apeland pthread_barrier_wait(targ.barrier);
+
+Afisarea rezultatului final, si eliberarea memoriei se face doar in cadrul
+thread-ului cu id-ul 0.
+
+De asemenea pentru evitarea problemelor de sincronizare, dupa punctele 1, 4, 5,
+6, 7, apelez pthread_barrier_wait(), astfel incat la fiecare pas a
+algoritmului se utilizeaza si se modifica elemente a generatiei calculate 
+anterior.
+
+De asemenea, tin sa mentionez ca am reparat si functia cmpfunction(), care la 
+fiecare apel facea un numar mare de operatii in plus, pentru a numara cati 
+cromozomi a indivizilor cu care se apela functia erau setati pe 1. Astfel,
+adaugand un nou camp in structura individual (chromosome_count), am mutat 
+aceasta numarare de cromozomi in functia compute_fitness_function, care e 
+apelata inaintea functiei de sortare, astfel reduc semnificativ numarul de 
+operatii efectuate si timpul de executie a programului.
+
+Am obtinut urmatoarele timpuri de executie si acceleratii: 
+Durata executie secventiala: 27.79
+Durata executie paralela, P=2: 3.77
+Durata executie paralela, P=4: 3.00
+Acceleratie 1-2: 7.37
+Acceleratie 1-4: 9.26
+Acceleratie 2-4: 1.26
